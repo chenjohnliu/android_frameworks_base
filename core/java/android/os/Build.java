@@ -341,6 +341,9 @@ public class Build {
          */
         public static final int SDK_INT = SystemProperties.getInt(
                 "ro.build.version.sdk", 0);
+        /** @hide */
+        public static final int SEM_INT = SystemProperties.getInt(
+                "ro.build.version.sem", 522);
 
         /**
          * The SDK version of the software that <em>initially</em> shipped on

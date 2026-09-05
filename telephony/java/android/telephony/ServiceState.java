@@ -101,6 +101,12 @@ public class ServiceState implements Parcelable {
      */
     public static final int STATE_POWER_OFF = TelephonyProtoEnums.SERVICE_STATE_POWER_OFF;  // 3
 
+    /** Snapshot is deactivated. @hide */
+    public static final int SNAPSHOT_STATUS_DEACTIVATED = 0;
+
+    /** Snapshot is activated. @hide */
+    public static final int SNAPSHOT_STATUS_ACTIVATED = 1;
+
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(prefix = "FREQUENCY_RANGE_",
@@ -542,6 +548,15 @@ public class ServiceState implements Parcelable {
     }
 
     /**
+     * Returns the snapshot status.
+     *
+     * @hide
+     */
+    public int getSnapshotStatus() {
+        return SNAPSHOT_STATUS_DEACTIVATED;
+    }
+
+    /**
      * Get current voice service state
      *
      * @see #STATE_IN_SERVICE
@@ -588,6 +603,39 @@ public class ServiceState implements Parcelable {
      */
     public @RegState int getDataRegistrationState() {
         return getDataRegState();
+    }
+
+    /**
+     * Returns the registration state of the underlying mobile data network.
+     *
+     * @hide
+     */
+    public @RegState int getMobileDataRegState() {
+        final NetworkRegistrationInfo wwanRegInfo = getNetworkRegistrationInfo(
+                NetworkRegistrationInfo.DOMAIN_PS,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+        return wwanRegInfo != null && wwanRegInfo.isInService()
+                ? STATE_IN_SERVICE : STATE_OUT_OF_SERVICE;
+    }
+
+    /**
+     * Returns whether the device is registered only for packet-switched service.
+     *
+     * @hide
+     */
+    public boolean isPsOnlyReg() {
+        final NetworkRegistrationInfo psRegInfo = getNetworkRegistrationInfo(
+                NetworkRegistrationInfo.DOMAIN_PS,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+        if (psRegInfo == null || !psRegInfo.isRegistered()
+                || !isPsOnlyTech(psRegInfo.getAccessNetworkTechnology())) {
+            return false;
+        }
+
+        final NetworkRegistrationInfo csRegInfo = getNetworkRegistrationInfo(
+                NetworkRegistrationInfo.DOMAIN_CS,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+        return csRegInfo == null || !csRegInfo.isRegistered();
     }
 
     /**
@@ -1614,6 +1662,30 @@ public class ServiceState implements Parcelable {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public int getRilDataRadioTechnology() {
         return networkTypeToRilRadioTechnology(getDataNetworkType());
+    }
+
+    /**
+     * Returns the RIL radio technology of the underlying mobile data network.
+     *
+     * <p>Unlike {@link #getRilDataRadioTechnology()}, this always reports the WWAN PS
+     * registration and therefore does not switch to IWLAN when WLAN is preferred.</p>
+     *
+     * @hide
+     */
+    public int getRilMobileDataRadioTechnology() {
+        final NetworkRegistrationInfo wwanRegInfo = getNetworkRegistrationInfo(
+                NetworkRegistrationInfo.DOMAIN_PS,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+        if (wwanRegInfo == null) {
+            return RIL_RADIO_TECHNOLOGY_UNKNOWN;
+        }
+
+        final int networkType = wwanRegInfo.getAccessNetworkTechnology();
+        if (networkType == TelephonyManager.NETWORK_TYPE_LTE
+                && wwanRegInfo.isUsingCarrierAggregation()) {
+            return RIL_RADIO_TECHNOLOGY_LTE_CA;
+        }
+        return networkTypeToRilRadioTechnology(networkType);
     }
 
     /**

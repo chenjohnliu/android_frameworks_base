@@ -218,4 +218,10 @@ interface IPhoneSubInfo {
      */
     String getIccSimChallengeResponse(int subId, int appType, int authType, String data,
             String callingPackage, String callingFeatureId);
+
+    /**
+     * Retrieves the Group Identifier Level2 for GSM phones of a subId.
+     */
+    String getGroupIdLevel2ForSubscriber(int subId, String callingPackage,
+            String callingFeatureId);
 }
