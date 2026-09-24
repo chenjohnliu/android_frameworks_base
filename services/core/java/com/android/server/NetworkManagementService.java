@@ -79,6 +79,7 @@ import android.util.SparseIntArray;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.app.IBatteryStats;
+import com.android.internal.net.IOemNetd;
 import com.android.internal.util.DumpUtils;
 import com.android.internal.util.HexDump;
 import com.android.internal.util.Preconditions;
@@ -843,6 +844,80 @@ public class NetworkManagementService extends INetworkManagementService.Stub {
     public void removeRoute(int netId, RouteInfo route) {
         NetworkStack.checkNetworkStackPermission(mContext);
         NetdUtils.modifyRoute(mNetdService, ModifyOperation.REMOVE, netId, route);
+    }
+
+    /** Compatibility entry point for legacy platform-signed ePDG clients. */
+    @Override
+    public void addLegacyRoute(int netId, String ifName, String destination,
+            String nextHop, int uid) {
+        enforceSystemUid();
+        try {
+            mNetdService.networkAddLegacyRoute(netId, ifName, destination, nextHop, uid);
+        } catch (RemoteException | ServiceSpecificException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Compatibility entry point for legacy platform-signed ePDG clients. */
+    @Override
+    public void removeLegacyRoute(int netId, String ifName, String destination,
+            String nextHop, int uid) {
+        enforceSystemUid();
+        try {
+            mNetdService.networkRemoveLegacyRoute(netId, ifName, destination, nextHop, uid);
+        } catch (RemoteException | ServiceSpecificException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Samsung ePDG compatibility entry point for the platform-signed ePDG service. */
+    @Override
+    public void enableEpdg(String mobileInterface, String tunnelingInterface,
+            boolean deleteSkip) {
+        modifyEpdg(true, mobileInterface, tunnelingInterface, deleteSkip);
+    }
+
+    /** Samsung ePDG compatibility entry point for the platform-signed ePDG service. */
+    @Override
+    public void disableEpdg(String mobileInterface, String tunnelingInterface) {
+        if (mobileInterface.startsWith("epdg_data")) {
+            // The legacy service skips address configuration when an interface
+            // is already UP. Dummy endpoints persist across ePDG sessions, so
+            // reset them here to prevent a new tunnel from inheriting the
+            // previous session's delegated IPv4/IPv6 addresses.
+            clearInterfaceAddresses(mobileInterface);
+            setInterfaceDown(mobileInterface);
+        }
+        modifyEpdg(false, mobileInterface, tunnelingInterface, false);
+    }
+
+    /** Samsung ePDG compatibility entry point for IPsec data-path setup. */
+    @Override
+    public void setEpdgInterfaceDropRule(String iface, boolean add) {
+        enforceSystemUid();
+        try {
+            final IOemNetd oemNetd = IOemNetd.Stub.asInterface(mNetdService.getOemNetd());
+            if (oemNetd == null) {
+                throw new IllegalStateException("OEM netd service unavailable");
+            }
+            oemNetd.setEpdgInterfaceDropRule(iface, add);
+        } catch (RemoteException | ServiceSpecificException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private void modifyEpdg(boolean enable, String mobileInterface,
+            String tunnelingInterface, boolean deleteSkip) {
+        enforceSystemUid();
+        try {
+            final IOemNetd oemNetd = IOemNetd.Stub.asInterface(mNetdService.getOemNetd());
+            if (oemNetd == null) {
+                throw new IllegalStateException("OEM netd service unavailable");
+            }
+            oemNetd.modifyEpdg(enable, mobileInterface, tunnelingInterface, deleteSkip);
+        } catch (RemoteException | ServiceSpecificException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private ArrayList<String> readRouteList(String filename) {
