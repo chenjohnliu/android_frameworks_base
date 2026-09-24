@@ -94,6 +94,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.util.ArrayList;
@@ -748,6 +749,16 @@ public class NetworkManagementService extends INetworkManagementService.Stub {
         final InterfaceConfigurationParcel cfgParcel = toStableParcel(cfg, iface);
 
         try {
+            // Samsung's legacy ePDG service configures the delegated IPv6 address
+            // before it calls enableIpv6(). AOSP netd rejects RTM_NEWADDR with EACCES
+            // while disable_ipv6 is still set, so preserve the stock call contract
+            // for the platform-signed service without changing IPv4 callers. m11q
+            // isolates IWLAN onto epdg_data* to avoid colliding with modem rmnet_data*.
+            if (Binder.getCallingUid() == Process.SYSTEM_UID
+                    && (iface.startsWith("rmnet_data") || iface.startsWith("epdg_data"))
+                    && linkAddr.getAddress() instanceof Inet6Address) {
+                mNetdService.interfaceSetEnableIPv6(iface, true);
+            }
             mNetdService.interfaceSetCfg(cfgParcel);
         } catch (RemoteException | ServiceSpecificException e) {
             throw new IllegalStateException(e);
