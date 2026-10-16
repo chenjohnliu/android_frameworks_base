@@ -7165,6 +7165,14 @@
             android:exported="true">
         </provider>
 
+        <provider
+            android:name="com.android.server.enterprise.content.SecContentProvider2"
+            android:authorities="com.sec.knox.provider2"
+            android:singleUser="true"
+            android:multiprocess="false"
+            android:exported="true">
+        </provider>
+
     </application>
 
 </manifest>

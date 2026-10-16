@@ -2472,6 +2472,35 @@ public class TelephonyManager {
     }
 
     /**
+     * Returns the legacy cell location for a particular subscription.
+     *
+     * <p>The AOSP Android 13 legacy cell-location backend is scoped to the default data
+     * subscription. Return {@code null} for other subscriptions rather than returning a location
+     * belonging to the wrong SIM.
+     *
+     * @param subId subscription whose cell location is requested
+     * @return current legacy cell location, or {@code null} when unavailable or not safely
+     *         representable by the AOSP backend
+     * @hide
+     */
+    @Deprecated
+    @RequiresPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+    @UnsupportedAppUsage
+    public CellLocation getCellLocationBySubId(int subId) {
+        if (!SubscriptionManager.isUsableSubscriptionId(subId)) {
+            Rlog.d(TAG, "getCellLocationBySubId returning null for invalid subscription "
+                    + subId);
+            return null;
+        }
+        if (subId != SubscriptionManager.getDefaultDataSubscriptionId()) {
+            Rlog.d(TAG, "getCellLocationBySubId returning null because AOSP legacy cell location "
+                    + "is only available for the default data subscription");
+            return null;
+        }
+        return createForSubscriptionId(subId).getCellLocation();
+    }
+
+    /**
      * Returns the neighboring cell information of the device.
      *
      * @return List of NeighboringCellInfo or null if info unavailable.
@@ -5002,6 +5031,46 @@ public class TelephonyManager {
             // This could happen before phone restarts due to crashing
             return null;
         }
+    }
+
+    /**
+     * Returns the Group Identifier Level2 for a GSM phone for a particular subscription.
+     * Return null if it is unavailable.
+     *
+     * @param subId whose group identifier is returned
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.READ_PHONE_STATE)
+    @UnsupportedAppUsage
+    public String getGroupIdLevel2(int subId) {
+        try {
+            IPhoneSubInfo info = getSubscriberInfoService();
+            if (info == null)
+                return null;
+            return info.getGroupIdLevel2ForSubscriber(subId, mContext.getOpPackageName(),
+                    mContext.getAttributionTag());
+        } catch (RemoteException ex) {
+            return null;
+        } catch (NullPointerException ex) {
+            // This could happen before phone restarts due to crashing
+            return null;
+        }
+    }
+
+    /**
+     * Compatibility entry point for the M11 stock-disabled IMS SIM Toolkit
+     * call-control path. This framework has no Samsung ISemTelephony call-control
+     * backend. Stock preserves the supplied number when that check is unavailable;
+     * an empty string would instead be interpreted as a rewritten dial target.
+     * This does not implement UICC number rewriting or call barring. Revisit it
+     * before supporting carriers that require STK IMS call control.
+     * No permission-protected data or telephony operation is accessed here.
+     *
+     * @hide
+     */
+    @UnsupportedAppUsage
+    public String checkCallControl(String dialNumber) {
+        return dialNumber;
     }
 
     /**
@@ -8223,6 +8292,75 @@ public class TelephonyManager {
             // This could happen before phone restarts due to crashing
             return null;
         }
+    }
+
+    /**
+     * Returns the legacy Samsung GBA bootstrapping transaction identifier.
+     *
+     * <p>AOSP has no Samsung legacy ISIM GBA cache or backend. Returning {@code null} preserves
+     * the unsupported result so basic IMS can use its normal fallback instead of fabricating GBA
+     * success.
+     *
+     * @hide
+     */
+    public String getBtid() {
+        return null;
+    }
+
+    /**
+     * Returns the legacy Samsung GBA key lifetime.
+     *
+     * <p>AOSP has no Samsung legacy ISIM GBA cache or backend.
+     *
+     * @hide
+     */
+    public String getKeyLifetime() {
+        return null;
+    }
+
+    /**
+     * Returns the legacy Samsung GBA RAND value.
+     *
+     * <p>AOSP has no Samsung legacy ISIM GBA cache or backend.
+     *
+     * @hide
+     */
+    public byte[] getRand() {
+        return null;
+    }
+
+    /**
+     * Reports whether the default subscription supports the legacy Samsung GBA backend.
+     *
+     * <p>AOSP has no compatible backend, so this must not report fabricated support.
+     *
+     * @hide
+     */
+    public boolean isGbaSupported() {
+        return false;
+    }
+
+    /**
+     * Reports whether a subscription supports the legacy Samsung GBA backend.
+     *
+     * <p>AOSP has no compatible backend, so this must not report fabricated support.
+     *
+     * @hide
+     */
+    public boolean isGbaSupported(int subId) {
+        return false;
+    }
+
+    /**
+     * Supplies legacy Samsung GBA bootstrapping parameters.
+     *
+     * <p>AOSP has no Samsung legacy ISIM cache or backend. The parameters are intentionally not
+     * retained, allowing basic IMS to follow its unsupported-GBA fallback without fabricating a
+     * successful bootstrap.
+     *
+     * @hide
+     */
+    public void setGbaBootstrappingParams(byte[] rand, String btid, String keyLifetime) {
     }
 
     /** UICC application type is unknown or not specified */

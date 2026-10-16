@@ -309,4 +309,30 @@ interface INetworkManagementService
     int removeRoutesFromLocalNetwork(in List<RouteInfo> routes);
 
     boolean isNetworkRestricted(int uid);
+
+    /**
+     * Compatibility API for platform-signed legacy ePDG clients.
+     * Only AID_SYSTEM may call these methods; the implementation delegates to netd.
+     * @hide
+     */
+    void addLegacyRoute(int netId, String ifName, String destination,
+            String nextHop, int uid);
+    void removeLegacyRoute(int netId, String ifName, String destination,
+            String nextHop, int uid);
+
+    /**
+     * Samsung ePDG compatibility API. These methods install/remove the traffic-control
+     * redirect pair between a cellular PDN interface and its IPsec tunnel interface.
+     * Only AID_SYSTEM may call them.
+     * @hide
+     */
+    void enableEpdg(String mobileInterface, String tunnelingInterface, boolean deleteSkip);
+    void disableEpdg(String mobileInterface, String tunnelingInterface);
+
+    /**
+     * Temporarily block or unblock traffic on an ePDG cellular PDN interface while
+     * the IPsec data path is being brought up.
+     * @hide
+     */
+    void setEpdgInterfaceDropRule(String iface, boolean add);
 }

@@ -62,6 +62,13 @@ public final class UserHandle implements Parcelable {
     @SystemApi
     public static final @NonNull UserHandle CURRENT = new UserHandle(USER_CURRENT);
 
+    /**
+     * Samsung compatibility alias for the current user handle.
+     * @hide
+     */
+    @UnsupportedAppUsage
+    public static final @NonNull UserHandle SEM_CURRENT = CURRENT;
+
     /** @hide A user id to indicate that we would like to send to the current
      *  user, but if this is calling from a user process then we will send it
      *  to the caller's user instead of failing with a security exception */

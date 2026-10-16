@@ -17,9 +17,15 @@
 package com.android.settingslib;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.system.StructUtsname;
+import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -70,5 +76,113 @@ public class DeviceInfoUtilsTest {
         final String expected = mContext.getString(R.string.status_unavailable);
 
         assertThat(DeviceInfoUtils.formatKernelVersion(mContext, null)).isEqualTo(expected);
+    }
+
+    @Test
+    public void getPhoneNumber_imsOnlyNumber_usesStandardSubscriptionApi() {
+        SubscriptionManager subscriptions = mock(SubscriptionManager.class);
+        TelephonyManager telephony = mock(TelephonyManager.class);
+        when(subscriptions.getPhoneNumber(1)).thenReturn("+15555550123");
+
+        assertThat(DeviceInfoUtils.getPhoneNumber(subscriptions, telephony, 1))
+                .isEqualTo("+15555550123");
+        verifyNoInteractions(telephony);
+    }
+
+    @Test
+    public void getPhoneNumber_emptyModernNumber_fallsBackToSameSubscription() {
+        SubscriptionManager subscriptions = mock(SubscriptionManager.class);
+        TelephonyManager telephony = mock(TelephonyManager.class);
+        TelephonyManager selected = mock(TelephonyManager.class);
+        when(subscriptions.getPhoneNumber(7)).thenReturn("");
+        when(telephony.createForSubscriptionId(7)).thenReturn(selected);
+        when(selected.getLine1Number()).thenReturn("+15555550124");
+
+        assertThat(DeviceInfoUtils.getPhoneNumber(subscriptions, telephony, 7))
+                .isEqualTo("+15555550124");
+        verify(telephony).createForSubscriptionId(7);
+    }
+
+    @Test
+    public void getPhoneNumber_modernPermissionDenied_usesLegacyNumber() {
+        SubscriptionManager subscriptions = mock(SubscriptionManager.class);
+        TelephonyManager telephony = mock(TelephonyManager.class);
+        when(subscriptions.getPhoneNumber(1)).thenThrow(new SecurityException());
+        when(telephony.createForSubscriptionId(1)).thenReturn(telephony);
+        when(telephony.getLine1Number()).thenReturn("+15555550123");
+
+        assertThat(DeviceInfoUtils.getPhoneNumber(subscriptions, telephony, 1))
+                .isEqualTo("+15555550123");
+    }
+
+    @Test
+    public void getPhoneNumber_modernServiceUnavailable_usesLegacyNumber() {
+        SubscriptionManager subscriptions = mock(SubscriptionManager.class);
+        TelephonyManager telephony = mock(TelephonyManager.class);
+        when(subscriptions.getPhoneNumber(1)).thenThrow(new IllegalStateException());
+        when(telephony.createForSubscriptionId(1)).thenReturn(telephony);
+        when(telephony.getLine1Number()).thenReturn("+15555550123");
+
+        assertThat(DeviceInfoUtils.getPhoneNumber(subscriptions, telephony, 1))
+                .isEqualTo("+15555550123");
+    }
+
+    @Test
+    public void getPhoneNumber_invalidSubscription_doesNotReadDefaultSim() {
+        SubscriptionManager subscriptions = mock(SubscriptionManager.class);
+        TelephonyManager telephony = mock(TelephonyManager.class);
+
+        assertThat(DeviceInfoUtils.getPhoneNumber(subscriptions, telephony,
+                SubscriptionManager.INVALID_SUBSCRIPTION_ID)).isNull();
+        verifyNoInteractions(subscriptions, telephony);
+    }
+
+    @Test
+    public void getPhoneNumber_noServices_returnsNull() {
+        assertThat(DeviceInfoUtils.getPhoneNumber(null, null, 1)).isNull();
+    }
+
+    @Test
+    public void getPhoneNumber_defaultSubscription_doesNotReadOtherSim() {
+        SubscriptionManager subscriptions = mock(SubscriptionManager.class);
+        TelephonyManager telephony = mock(TelephonyManager.class);
+
+        assertThat(DeviceInfoUtils.getPhoneNumber(subscriptions, telephony,
+                SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)).isNull();
+        verifyNoInteractions(subscriptions, telephony);
+    }
+
+    @Test
+    public void getPhoneNumber_noSubscriptionService_usesLegacyNumber() {
+        TelephonyManager telephony = mock(TelephonyManager.class);
+        when(telephony.createForSubscriptionId(1)).thenReturn(telephony);
+        when(telephony.getLine1Number()).thenReturn("+15555550123");
+
+        assertThat(DeviceInfoUtils.getPhoneNumber(null, telephony, 1))
+                .isEqualTo("+15555550123");
+    }
+
+    @Test
+    public void getPhoneNumber_bothSourcesUnavailable_returnsNull() {
+        SubscriptionManager subscriptions = mock(SubscriptionManager.class);
+        TelephonyManager telephony = mock(TelephonyManager.class);
+        when(subscriptions.getPhoneNumber(1)).thenReturn("");
+        when(telephony.createForSubscriptionId(1)).thenReturn(telephony);
+
+        assertThat(DeviceInfoUtils.getPhoneNumber(subscriptions, telephony, 1)).isNull();
+    }
+
+    @Test
+    public void getPhoneNumber_legacyPermissionDenied_returnsNull() {
+        TelephonyManager telephony = mock(TelephonyManager.class);
+        when(telephony.createForSubscriptionId(1)).thenReturn(telephony);
+        when(telephony.getLine1Number()).thenThrow(new SecurityException());
+
+        assertThat(DeviceInfoUtils.getPhoneNumber(null, telephony, 1)).isNull();
+    }
+
+    @Test
+    public void getFormattedPhoneNumber_nullSubscription_returnsNull() {
+        assertThat(DeviceInfoUtils.getFormattedPhoneNumber(mContext, null)).isNull();
     }
 }

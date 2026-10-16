@@ -16,6 +16,8 @@
 package com.android.systemui.statusbar.connectivity;
 
 import static android.telephony.TelephonyManager.UNKNOWN_CARRIER_ID;
+import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_CROSS_SIM;
+import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN;
 
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
@@ -157,6 +159,9 @@ public class MobileSignalController extends SignalController<MobileState, Mobile
         public void onRegistered(ImsRegistrationAttributes attributes) {
             Log.d(mTag, "onRegistered: " + "attributes=" + attributes);
             mCurrentState.imsRegistered = true;
+            int registrationTechnology = attributes.getRegistrationTechnology();
+            mIsVowifiAvailable = registrationTechnology == REGISTRATION_TECH_IWLAN
+                    || registrationTechnology == REGISTRATION_TECH_CROSS_SIM;
             notifyListenersIfNecessary();
             int imsTransportType = attributes.getTransportType();
             int registrationAttributes = attributes.getAttributeFlags();
@@ -191,6 +196,7 @@ public class MobileSignalController extends SignalController<MobileState, Mobile
         @Override
         public void onRegistering(ImsRegistrationAttributes attr) {
             mCurrentState.imsRegistered = false;
+            mIsVowifiAvailable = false;
             notifyListenersIfNecessary();
         }
 
@@ -198,6 +204,7 @@ public class MobileSignalController extends SignalController<MobileState, Mobile
         public void onUnregistered(ImsReasonInfo info) {
             Log.d(mTag, "onDeregistered: " + "info=" + info);
             mCurrentState.imsRegistered = false;
+            mIsVowifiAvailable = false;
             notifyListenersIfNecessary();
             mImsType = IMS_TYPE_WWAN;
             IconState statusIcon = new IconState(
@@ -966,9 +973,7 @@ public class MobileSignalController extends SignalController<MobileState, Mobile
     }
 
     public boolean isVowifiAvailable() {
-        return mCurrentState.voiceCapable && mCurrentState.imsRegistered
-                && (getDataNetworkType() == TelephonyManager.NETWORK_TYPE_IWLAN
-                || mIsVowifiAvailable);
+        return mCurrentState.voiceCapable && mCurrentState.imsRegistered && mIsVowifiAvailable;
     }
 
     @Override
@@ -978,6 +983,7 @@ public class MobileSignalController extends SignalController<MobileState, Mobile
         pw.println("  mProviderModelBehavior=" + mProviderModelBehavior + ",");
         pw.println("  mInflateSignalStrengths=" + mInflateSignalStrengths + ",");
         pw.println("  isDataDisabled=" + isDataDisabled() + ",");
+        pw.println("  mIsVowifiAvailable=" + mIsVowifiAvailable + ",");
         pw.println("  mNetworkToIconLookup=" + mNetworkToIconLookup + ",");
         pw.println("  MobileStatusHistory");
         int size = 0;

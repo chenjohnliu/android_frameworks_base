@@ -26,6 +26,7 @@ import android.system.Os;
 import android.system.StructUtsname;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.BidiFormatter;
 import android.text.TextDirectionHeuristics;
@@ -179,10 +180,10 @@ public class DeviceInfoUtils {
             SubscriptionInfo subscriptionInfo) {
         String formattedNumber = null;
         if (subscriptionInfo != null) {
-            final TelephonyManager telephonyManager = context.getSystemService(
-                    TelephonyManager.class);
-            final String rawNumber = telephonyManager.createForSubscriptionId(
-                    subscriptionInfo.getSubscriptionId()).getLine1Number();
+            final String rawNumber = getPhoneNumber(
+                    context.getSystemService(SubscriptionManager.class),
+                    context.getSystemService(TelephonyManager.class),
+                    subscriptionInfo.getSubscriptionId());
             if (!TextUtils.isEmpty(rawNumber)) {
                 formattedNumber = PhoneNumberUtils.formatNumber(rawNumber);
             }
@@ -190,18 +191,43 @@ public class DeviceInfoUtils {
         return formattedNumber;
     }
 
+    @VisibleForTesting
+    static String getPhoneNumber(SubscriptionManager subscriptionManager,
+            TelephonyManager telephonyManager, int subId) {
+        if (!SubscriptionManager.isUsableSubscriptionId(subId)) {
+            return null;
+        }
+        // Android 13 includes the carrier, UICC and IMS number sources. The
+        // legacy line-1 API alone can be empty even after IMS supplied a number.
+        if (subscriptionManager != null) {
+            try {
+                final String number = subscriptionManager.getPhoneNumber(subId);
+                if (!TextUtils.isEmpty(number)) {
+                    return number;
+                }
+            } catch (IllegalStateException | SecurityException e) {
+                // Service restart or a caller with only legacy permissions.
+            }
+        }
+        if (telephonyManager == null) {
+            return null;
+        }
+        try {
+            return telephonyManager.createForSubscriptionId(subId).getLine1Number();
+        } catch (IllegalStateException | SecurityException e) {
+            return null;
+        }
+    }
+
     public static String getFormattedPhoneNumbers(Context context,
             List<SubscriptionInfo> subscriptionInfoList) {
         StringBuilder sb = new StringBuilder();
         if (subscriptionInfoList != null) {
-            final TelephonyManager telephonyManager = context.getSystemService(
-                    TelephonyManager.class);
             final int count = subscriptionInfoList.size();
             for (SubscriptionInfo subscriptionInfo : subscriptionInfoList) {
-                final String rawNumber = telephonyManager.createForSubscriptionId(
-                        subscriptionInfo.getSubscriptionId()).getLine1Number();
-                if (!TextUtils.isEmpty(rawNumber)) {
-                    sb.append(PhoneNumberUtils.formatNumber(rawNumber)).append("\n");
+                final String formattedNumber = getFormattedPhoneNumber(context, subscriptionInfo);
+                if (!TextUtils.isEmpty(formattedNumber)) {
+                    sb.append(formattedNumber).append("\n");
                 }
             }
         }
