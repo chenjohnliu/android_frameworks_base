@@ -224,4 +224,7 @@ interface IPhoneSubInfo {
      */
     String getGroupIdLevel2ForSubscriber(int subId, String callingPackage,
             String callingFeatureId);
+    /** Returns the IMSI for an application type on the specified subscription. */
+    String getSubscriberIdForUiccAppType(int subId, int appType, String callingPackage,
+            String callingFeatureId);
 }
