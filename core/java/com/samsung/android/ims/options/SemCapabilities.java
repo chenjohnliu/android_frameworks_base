@@ -60,16 +60,8 @@ public class SemCapabilities implements Parcelable {
         mTimestamp = builder.mTimestamp;
     }
 
-    public Builder getBuilder() {
-        return new Builder()
-                .setAvailableFeatures(mAvailableFeatures)
-                .setBotServiceId(mBotServiceId)
-                .setExtFeature(mExtFeatures)
-                .setFeature(mFeatures)
-                .setIsAvailable(mIsAvailable)
-                .setIsExpired(mIsExpired)
-                .setLegacyLatching(mIsLegacyLatching)
-                .setTimestamp(mTimestamp);
+    public static Builder getBuilder() {
+        return new Builder();
     }
 
     @Override
