@@ -367,10 +367,10 @@ public class PixelPropsUtils {
 
     public static void onEngineGetCertificateChain() {
         // Check stack for SafetyNet or Play Integrity
-        if (isCallerSafetyNet() || sIsFinsky) {
-            Log.i(TAG, "Blocked key attestation sIsGms=" + sIsGms + " sIsFinsky=" + sIsFinsky);
-            throw new UnsupportedOperationException();
-        }
+        // if (isCallerSafetyNet() || sIsFinsky) {
+        //     Log.i(TAG, "Blocked key attestation sIsGms=" + sIsGms + " sIsFinsky=" + sIsFinsky);
+        //     throw new UnsupportedOperationException();
+        // }
     }
 
     public static void dlog(String msg) {
